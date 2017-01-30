@@ -1,0 +1,19 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "GxPD7A0NjMDom1xte0mghkpzr0E=",
+			"path": "github.com/spf13/pflag",
+			"revision": "5ccb023bc27df288a957c5e994cd44fd19619465",
+			"revisionTime": "2016-10-24T13:13:51Z"
+		},
+		{
+			"checksumSHA1": "LbVBUKf6512cI6L/g2d0R8uSt6k=",
+			"path": "github.com/traetox/goDS18B20",
+			"revision": "b93ab4b3045365a00e91f9b13c9ab43571d01ec6",
+			"revisionTime": "2015-03-22T15:30:32Z"
+		}
+	],
+	"rootPath": "github.com/fest-research/temperature-app"
+}
