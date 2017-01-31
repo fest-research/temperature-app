@@ -1,0 +1,65 @@
+kind: List
+apiVersion: v1
+items:
+- kind: Deployment
+  apiVersion: extensions/v1beta1
+  metadata:
+    labels:
+      app: temperature-app
+    name: temperature-app
+    namespace: default
+  spec:
+    replicas: 1
+    selector:
+      matchLabels:
+        app: temperature-app
+    template:
+      metadata:
+        labels:
+          app: temperature-app
+      spec:
+        nodeSelector:
+          target: master
+        containers:
+          - name: temperature-app
+            securityContext:
+              privileged: true
+            image: fest/temperature-app-arm
+            imagePullPolicy: Always
+            ports:
+              - containerPort: 3000
+                protocol: TCP
+            volumeMounts:
+              - mountPath: /sys/class/gpio
+                name:      sys-class-gpio
+              - mountPath: /sys/devices
+                name:      sys-devices
+              - mountPath: /sys/bus
+                name:      sys-bus
+            args:
+              # Uncomment this if you want to change port
+              # - --port=3001
+        volumes:
+          - name:     sys-class-gpio
+            hostPath:
+              path:   /sys/class/gpio
+          - name:     sys-devices
+            hostPath:
+              path:   /sys/devices
+          - name:     sys-bus
+            hostPath:
+              path:   /sys/bus
+- kind: Service
+  apiVersion: v1
+  metadata:
+    labels:
+      app: temperature-app
+    name: temperature-app
+    namespace: default
+  spec:
+    type: NodePort
+    ports:
+    - port: 3000
+      targetPort: 3000
+    selector:
+      app: temperature-app
