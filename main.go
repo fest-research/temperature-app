@@ -36,7 +36,8 @@ import (
 )
 
 var (
-	remoteEndpoint = pflag.String("remote-endpoint", "http://localhost:8080",
+	remoteEndpoint = pflag.String("remote-endpoint",
+		"http://104.155.11.172:8080/api/v1/proxy/namespaces/default/services/demo/push",
 		"Address of the remove server to which measurements are sent.")
 	threshold = pflag.Float32("temperature-threshold", 32.5,
 		"Events are produced when this temperature threshold is exceeded.")

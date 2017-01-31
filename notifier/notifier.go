@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"path"
+	"net/url"
 )
 
 const (
@@ -21,13 +21,14 @@ type UrlPathNotifier struct {
 }
 
 func (notifier *UrlPathNotifier) Notify(event string) error {
-	urlPath := path.Join(notifier.endpoint, event)
+	urlPath := notifier.endpoint + "/" + url.QueryEscape(event)
 	log.Printf("GET request to: %s", urlPath)
 	resp, err := http.Get(urlPath)
+	log.Println("GET finished")
 	if err != nil {
 		return fmt.Errorf("Failed to notify %s  with event %s: %s", notifier.endpoint, event, err)
 	}
-	if resp.StatusCode == http.StatusOK {
+	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Unexpected status during notify: %s", resp.StatusCode)
 	}
 	return nil

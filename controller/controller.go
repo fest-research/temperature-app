@@ -38,7 +38,10 @@ func (ctrl *TemperatureController) Start() {
 					log.Printf("Warning: could not transform event %s: %s\n", event, err)
 					continue
 				}
-				ctrl.notifier.Notify(transformedEvent)
+				err = ctrl.notifier.Notify(transformedEvent)
+				if err != nil {
+					log.Printf("Error during notify: %s", err)
+				}
 			}
 		default:
 			continue
@@ -70,7 +73,6 @@ func (strat *thresholdingControllerStrategy) ShouldNotify(event string) bool {
 		log.Printf("Warning: could not process event %s. Will not notify.", event)
 		return false
 	}
-	log.Printf("Value is: %s\n", value)
 	val := float32(value)
 
 	// Notify only if we have just exceeded the thresholds

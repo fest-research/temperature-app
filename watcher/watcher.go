@@ -28,7 +28,7 @@ func (tempWatcher *TemperatureWatcher) Watch() {
 			//}
 			log.Printf("Sending reading at %s", x)
 			//tempWatcher.resultChan <- reading.String()
-			tempWatcher.resultChan <- "34.5"
+			tempWatcher.resultChan <- "34.6"
 		}
 	}()
 }
