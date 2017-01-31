@@ -18,22 +18,25 @@ type TemperatureWatcher struct {
 }
 
 func (tempWatcher *TemperatureWatcher) Watch() {
-	defer close(tempWatcher.resultChan)
-	for x := range time.Tick(tempWatcher.watchInterval) {
-		// TODO: produce an event
-		reading, err := tempWatcher.reader.ReadFromSensor()
-		if err != nil {
-			log.Printf("Warning: can not read from sensor: %s, time: %s\n", err, x)
-			continue
+	go func() {
+		for x := range time.Tick(tempWatcher.watchInterval) {
+			// TODO: produce an event
+			//reading, err := tempWatcher.reader.ReadFromSensor()
+			//if err != nil {
+			//	log.Printf("Warning: can not read from sensor: %s, time: %s\n", err, x)
+			//	continue
+			//}
+			log.Printf("Sending reading at %s", x)
+			//tempWatcher.resultChan <- reading.String()
+			tempWatcher.resultChan <- "34.5"
 		}
-		tempWatcher.resultChan <- reading.String()
-	}
+	}()
 }
 
 func (tempWatcher *TemperatureWatcher) NextEvent() <-chan string {
 	return tempWatcher.resultChan
 }
 
-func NewTemperatureWatcher(watchInterval time.Duration, reader sensor.DS18B20Reader) Watcher {
-	return &TemperatureWatcher{reader: reader, watchInterval: watchInterval, resultChan: make(chan string, 0)}
+func NewTemperatureWatcher(watchInterval time.Duration, reader sensor.DS18B20Reader, resultChan chan string) Watcher {
+	return &TemperatureWatcher{reader: reader, watchInterval: watchInterval, resultChan: resultChan}
 }

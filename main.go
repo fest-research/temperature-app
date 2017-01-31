@@ -36,7 +36,7 @@ import (
 )
 
 var (
-	remoteEndpoint = pflag.String("remote-endpoint", "http://localhost:8084",
+	remoteEndpoint = pflag.String("remote-endpoint", "http://localhost:8080",
 		"Address of the remove server to which measurements are sent.")
 	threshold = pflag.Float32("temperature-threshold", 32.5,
 		"Events are produced when this temperature threshold is exceeded.")
@@ -53,11 +53,13 @@ func main() {
 
 	log.Printf("Sending to remote endpoint: %s", *remoteEndpoint)
 
-	temperatureWatcher := watcher.NewTemperatureWatcher(time.Second*2, sensor.DS18B20Reader{})
-	urlPathNotifier := notifier.NewUrlPathNotifier(*remoteEndpoint)
-
-	stopChan := make(chan string, 0)
+	watcherChan := make(chan string)
+	defer close(watcherChan)
+	stopChan := make(chan string)
 	defer close(stopChan)
+
+	temperatureWatcher := watcher.NewTemperatureWatcher(time.Second*2, sensor.DS18B20Reader{}, watcherChan)
+	urlPathNotifier := notifier.NewUrlPathNotifier(*remoteEndpoint)
 
 	ctrl := controller.Controller(nil)
 	if *units == notifier.Celsius {

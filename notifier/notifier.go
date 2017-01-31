@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"path"
 )
@@ -20,7 +21,9 @@ type UrlPathNotifier struct {
 }
 
 func (notifier *UrlPathNotifier) Notify(event string) error {
-	resp, err := http.Get(path.Join(notifier.endpoint, event))
+	urlPath := path.Join(notifier.endpoint, event)
+	log.Printf("GET request to: %s", urlPath)
+	resp, err := http.Get(urlPath)
 	if err != nil {
 		return fmt.Errorf("Failed to notify %s  with event %s: %s", notifier.endpoint, event, err)
 	}

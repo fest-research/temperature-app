@@ -13,87 +13,84 @@ type Controller interface {
 	Start()
 }
 
-type rawTemperatureController struct {
+type ControllerStrategy interface {
+	ShouldNotify(event string) bool
+	Decorate(event string) (string, error)
+}
+
+type TemperatureController struct {
 	stopChan <-chan string
 	watcher  watcher.Watcher
 	notifier notifier.Notifier
+	strategy ControllerStrategy
 }
 
-func (ctrl *rawTemperatureController) Start() {
+func (ctrl *TemperatureController) Start() {
 	ctrl.watcher.Watch()
 	for {
 		select {
 		case <-ctrl.stopChan:
 			return
 		case event := <-ctrl.watcher.NextEvent():
-			if ok := ctrl.shouldNotify(event); ok {
-				fmt.Printf("Attempting to notify for event: %s", event)
-				transformedEvent, err := ctrl.decorate(event)
+			if ok := ctrl.strategy.ShouldNotify(event); ok {
+				transformedEvent, err := ctrl.strategy.Decorate(event)
 				if err != nil {
 					log.Printf("Warning: could not transform event %s: %s\n", event, err)
 					continue
 				}
 				ctrl.notifier.Notify(transformedEvent)
 			}
+		default:
+			continue
 		}
 	}
+
 }
 
-func (ctrl *rawTemperatureController) shouldNotify(event string) bool {
+type defaultControllerStrategy struct {
+}
+
+func (strat *defaultControllerStrategy) ShouldNotify(event string) bool {
 	return true
 }
 
-func (ctrl *rawTemperatureController) decorate(event string) (string, error) {
+func (strat *defaultControllerStrategy) Decorate(event string) (string, error) {
 	return event, nil
 }
 
-func newRawTemperatureController(stopChan <-chan string, watcher watcher.Watcher,
-	notifier notifier.Notifier) *rawTemperatureController {
-	return &rawTemperatureController{stopChan: stopChan, watcher: watcher, notifier: notifier}
-}
-
-type thresholdingController struct {
-	*rawTemperatureController
+type thresholdingControllerStrategy struct {
+	defaultControllerStrategy
 	threshold         float32
 	thresholdExceeded bool
 }
 
-func (ctrl *thresholdingController) shouldNotify(event string) bool {
+func (strat *thresholdingControllerStrategy) ShouldNotify(event string) bool {
 	value, err := strconv.ParseFloat(event, 32)
 	if err != nil {
 		log.Printf("Warning: could not process event %s. Will not notify.", event)
 		return false
 	}
+	log.Printf("Value is: %s\n", value)
 	val := float32(value)
 
 	// Notify only if we have just exceeded the thresholds
-	if val > ctrl.threshold && !ctrl.thresholdExceeded {
-		ctrl.thresholdExceeded = true
+	if val > strat.threshold && !strat.thresholdExceeded {
+		strat.thresholdExceeded = true
 		return true
 	}
 
-	if val <= ctrl.threshold {
-		ctrl.thresholdExceeded = false
+	if val <= strat.threshold {
+		strat.thresholdExceeded = false
 	}
 
 	return false
 }
 
-func newThresholdingController(stopChan <-chan string, watcher watcher.Watcher,
-	notifier notifier.Notifier, threshold float32) *thresholdingController {
-	return &thresholdingController{
-		rawTemperatureController: newRawTemperatureController(stopChan, watcher, notifier),
-		threshold:                threshold,
-		thresholdExceeded:        false,
-	}
+type celsiusControllerStrategy struct {
+	thresholdingControllerStrategy
 }
 
-type CelsiusController struct {
-	*thresholdingController
-	threshold float32
-}
-
-func (celController *CelsiusController) decorate(event string) (string, error) {
+func (strat *celsiusControllerStrategy) Decorate(event string) (string, error) {
 	value, err := strconv.ParseFloat(event, 32)
 	if err != nil {
 		return "", err
@@ -103,42 +100,42 @@ func (celController *CelsiusController) decorate(event string) (string, error) {
 	return fmt.Sprintf("%.03f C", tempVal.Celsius()), nil
 }
 
-func NewCelsiusController(stopChan <-chan string, watcher watcher.Watcher,
-	notifier notifier.Notifier, threshold float32) Controller {
-	return &CelsiusController{
-		thresholdingController: newThresholdingController(stopChan, watcher, notifier, threshold),
-		threshold:              threshold,
-	}
+func newCelsiusControllerStrategy(threshold float32) ControllerStrategy {
+	return &celsiusControllerStrategy{thresholdingControllerStrategy{threshold: threshold}}
 }
 
-type FahrenheitController struct {
-	*thresholdingController
-	threshold float32
+type fahrenheitControllerStrategy struct {
+	thresholdingControllerStrategy
 }
 
-func (ctrl *FahrenheitController) shouldNotify(event string) bool {
-	value, err := strconv.ParseFloat(event, 32)
-	if err != nil {
-		fmt.Printf("Warning: could not process event %s. Will not notify.", event)
-		return false
-	}
-	val := float32(value)
-	return val > ctrl.threshold
-}
-
-func (celController *FahrenheitController) decorate(event string) (string, error) {
+func (strat *fahrenheitControllerStrategy) Decorate(event string) (string, error) {
 	value, err := strconv.ParseFloat(event, 32)
 	if err != nil {
 		return "", err
 	}
 	val := float32(value)
 	tempVal := goDS18B20.Temperature(val)
-	return fmt.Sprintf("%.03f C", tempVal.Fahrenheit()), nil
+	return fmt.Sprintf("%.03f F", tempVal.Fahrenheit()), nil
 }
 
-func NewFahrenheitController(stopChan <-chan string, watcher watcher.Watcher,
-	notifier notifier.Notifier, threshold float32) Controller {
-	return &CelsiusController{
-		thresholdingController: newThresholdingController(stopChan, watcher, notifier, threshold),
+func newFahrenheitControllerStrategy(threshold float32) ControllerStrategy {
+	return &fahrenheitControllerStrategy{thresholdingControllerStrategy{threshold: threshold}}
+}
+
+func NewCelsiusController(stopChan <-chan string, w watcher.Watcher, n notifier.Notifier, threshold float32) Controller {
+	return &TemperatureController{
+		stopChan: stopChan,
+		watcher:  w,
+		notifier: n,
+		strategy: newCelsiusControllerStrategy(threshold),
+	}
+}
+
+func NewFahrenheitController(stopChan <-chan string, w watcher.Watcher, n notifier.Notifier, threshold float32) Controller {
+	return &TemperatureController{
+		stopChan: stopChan,
+		watcher:  w,
+		notifier: n,
+		strategy: newFahrenheitControllerStrategy(threshold),
 	}
 }
